@@ -604,11 +604,14 @@ function formatDate(d) {
             expense: ['อาหารและเครื่องดื่ม', 'ค่าเดินทาง/น้ำมัน', 'ช้อปปิ้ง/ของใช้', 'ค่าน้ำ/ค่าไฟ/อินเทอร์เน็ต', 'ค่าที่พัก/ค่าเช่า', 'ความบันเทิง', 'สุขภาพ/พยาบาล', 'อื่นๆ']
         };
 
+        // Default Google Apps Script Web App URL Embedded Directly
+        const DEFAULT_SHEET_URL = 'https://script.google.com/macros/s/AKfycbx8-He2u8Em1VZ4pob_gH44V8u5jVrrQS6y6ZFNvahRUq4g1c1VmLQyM2unhlHKC4Fjmg/exec';
+
         // Application State
         let state = {
             isAdmin: false,
             appTitle: 'ระบบบัญชีรับ-จ่าย',
-            googleSheetUrl: '',
+            googleSheetUrl: DEFAULT_SHEET_URL,
             transactions: [
                 { id: '101', date: getTodayString(), time: '08:30', type: 'income', category: 'เงินเดือน', amount: 35000, note: 'เงินเดือนประจำเดือน' },
                 { id: '102', date: getTodayString(), time: '12:15', type: 'expense', category: 'อาหารและเครื่องดื่ม', amount: 150, note: 'มื้อเที่ยง' },
@@ -628,7 +631,7 @@ function formatDate(d) {
             setupDefaultDates();
             renderApp();
 
-            // Fetch from sheet if URL exists
+            // Fetch from sheet automatically using embedded URL
             if (state.googleSheetUrl) {
                 fetchDataFromSheet();
             }
@@ -664,7 +667,11 @@ function formatDate(d) {
             if (savedTitle) state.appTitle = savedTitle;
 
             const savedUrl = localStorage.getItem('acc_sheetUrl');
-            if (savedUrl) state.googleSheetUrl = savedUrl;
+            if (savedUrl) {
+                state.googleSheetUrl = savedUrl;
+            } else {
+                state.googleSheetUrl = DEFAULT_SHEET_URL;
+            }
 
             const savedTx = localStorage.getItem('acc_transactions');
             if (savedTx) {
@@ -812,7 +819,7 @@ function formatDate(d) {
 
         // Google Sheet Setup & Sync
         function openSheetModal() {
-            document.getElementById('sheetUrlInput').value = state.googleSheetUrl;
+            document.getElementById('sheetUrlInput').value = state.googleSheetUrl || DEFAULT_SHEET_URL;
             document.getElementById('sheetModal').classList.remove('hidden');
         }
 
@@ -822,15 +829,13 @@ function formatDate(d) {
 
         function saveSheetUrl() {
             const url = document.getElementById('sheetUrlInput').value.trim();
-            state.googleSheetUrl = url;
+            state.googleSheetUrl = url || DEFAULT_SHEET_URL;
             saveStateToLocal();
             updateSheetStatusUI();
             closeSheetModal();
-            if (url) {
+            if (state.googleSheetUrl) {
                 showToast('บันทึก URL เชื่อมต่อ Google Sheet แล้ว', 'success');
                 fetchDataFromSheet();
-            } else {
-                showToast('ยกเลิกการเชื่อมต่อ Google Sheet', 'info');
             }
         }
 
