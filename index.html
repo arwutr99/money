@@ -327,7 +327,7 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">รหัสผ่าน (Password)</label>
                     <input type="password" id="adminPasswordInput" required placeholder="กรอกรหัสผ่าน..." class="w-full border border-slate-300 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-400 mt-1">* รหัสผ่านเริ่มต้นคือ: <span class="font-mono font-bold text-indigo-600">aaaaa</span></p>
+                    <p class="text-[11px] text-slate-400 mt-1">* รหัสผ่านเริ่มต้นคือ: <span class="font-mono font-bold text-indigo-600">nimda</span></p>
                 </div>
                 <div class="flex space-x-2 pt-2">
                     <button type="button" onclick="closeAdminLoginModal()" class="flex-1 bg-slate-100 hover:bg-slate-200 text-slate-700 py-2.5 rounded-xl text-xs font-medium transition">ยกเลิก</button>
@@ -556,10 +556,18 @@ function doPost(e) {
 }
 
 function formatDate(d) {
+  if (!d) return "";
   if (d instanceof Date) {
     var year = d.getFullYear();
     var month = ("0" + (d.getMonth() + 1)).slice(-2);
     var day = ("0" + d.getDate()).slice(-2);
+    return year + "-" + month + "-" + day;
+  }
+  var dObj = new Date(d);
+  if (!isNaN(dObj.getTime())) {
+    var year = dObj.getFullYear();
+    var month = ("0" + (dObj.getMonth() + 1)).slice(-2);
+    var day = ("0" + dObj.getDate()).slice(-2);
     return year + "-" + month + "-" + day;
   }
   return d.toString();
@@ -768,7 +776,12 @@ function formatDate(d) {
                 const resData = await response.json();
                 if (resData.status === 'success') {
                     if (resData.appTitle) state.appTitle = resData.appTitle;
-                    if (Array.isArray(resData.data)) state.transactions = resData.data;
+                    if (Array.isArray(resData.data)) {
+                        state.transactions = resData.data.map(item => ({
+                            ...item,
+                            date: cleanDateString(item.date)
+                        }));
+                    }
                     saveStateToLocal();
                     renderApp();
                     showToast('อัปเดตข้อมูลจาก Google Sheet ล่าสุดแล้ว', 'success');
@@ -1199,41 +1212,41 @@ function formatDate(d) {
             const pieCtx = document.getElementById('pieChart').getContext('2d');
             if (pieChartInstance) pieChartInstance.destroy();
 
-            const chartColors = ['#f43f5e', '#fb923c', '#facc15', '#a855f7', '#3b82f6', '#06b6d4', '#64748b'];
-
-            pieChartInstance = new Chart(pieCtx, {
-                type: 'doughnut',
-                data: {
-                    labels: pieLabels.length > 0 ? pieLabels : ['ไม่มีข้อมูลรายจ่าย'],
-                    datasets: [{
-                        data: pieData.length > 0 ? pieData : [1],
-                        backgroundColor: pieData.length > 0 ? chartColors.slice(0, pieLabels.length) : ['#e2e8f0']
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } }
-                    }
-                }
-            });
+        // Formatters & Date Utilities
+        function cleanDateString(dateVal) {
+            if (!dateVal) return getTodayString();
+            dateVal = String(dateVal).trim();
+            const ymdMatch = dateVal.match(/^(\d{4})-(\d{2})-(\d{2})/);
+            if (ymdMatch) {
+                return `${ymdMatch[1]}-${ymdMatch[2]}-${ymdMatch[3]}`;
+            }
+            const d = new Date(dateVal);
+            if (!isNaN(d.getTime())) {
+                const year = d.getFullYear();
+                const month = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${year}-${month}-${day}`;
+            }
+            return dateVal;
         }
 
-        // Formatters
         function formatMoney(amount) {
             return Number(amount).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         }
 
         function formatThaiDate(dateStr) {
             if (!dateStr) return '-';
-            const parts = dateStr.split('-');
+            const cleanDate = cleanDateString(dateStr);
+            const parts = cleanDate.split('-');
             if (parts.length !== 3) return dateStr;
             const year = parseInt(parts[0]) + 543;
-            const months = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-            const month = months[parseInt(parts[1]) - 1];
+            const months = ['มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน', 'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'];
+            const monthIdx = parseInt(parts[1]) - 1;
             const day = parseInt(parts[2]);
-            return `${day} ${month} ${year}`;
+            if (monthIdx >= 0 && monthIdx < 12) {
+                return `${day} ${months[monthIdx]} ${year}`;
+            }
+            return dateStr;
         }
 
         // Custom Notification Toast
