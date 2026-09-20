@@ -85,18 +85,24 @@
         <div id="toastContainer" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none"></div>
 
         <!-- Sync Indicator Status Bar -->
-        <div id="syncStatusBar" class="hidden bg-indigo-50 border border-indigo-200 rounded-2xl p-3 text-xs text-indigo-800 flex justify-between items-center shadow-sm">
-            <div class="flex items-center space-x-2">
-                <span class="relative flex h-2.5 w-2.5">
+        <div id="syncStatusBar" class="hidden bg-indigo-50 border border-indigo-200 rounded-2xl p-3 text-xs text-indigo-800 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 shadow-sm">
+            <div class="flex items-center space-x-2 truncate max-w-full">
+                <span class="relative flex h-2.5 w-2.5 flex-shrink-0">
                   <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                   <span class="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
                 </span>
-                <span>เชื่อมโยงกับ Google Sheet แล้ว (<span id="connectedSheetUrl" class="font-mono truncate max-w-xs inline-block align-bottom"></span>)</span>
+                <span class="truncate">เชื่อมโยงกับ Google Sheet แล้ว (<span id="connectedSheetUrl" class="font-mono truncate max-w-xs inline-block align-bottom"></span>)</span>
             </div>
-            <button onclick="fetchDataFromSheet()" class="text-indigo-600 hover:text-indigo-900 font-semibold underline flex items-center space-x-1">
-                <i class="fa-solid fa-rotate"></i>
-                <span>ดึงข้อมูลล่าสุด</span>
-            </button>
+            <div class="flex items-center space-x-2 self-end sm:self-auto">
+                <button onclick="copyShareableLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-2.5 py-1 rounded-lg font-medium flex items-center space-x-1 transition shadow-sm" title="คัดลอกลิงก์สำหรับเปิดใช้งานบนเครื่องอื่น">
+                    <i class="fa-solid fa-share-nodes"></i>
+                    <span>คัดลอกลิงก์เปิดบนเครื่องอื่น</span>
+                </button>
+                <button onclick="fetchDataFromSheet()" class="text-indigo-600 hover:text-indigo-900 font-semibold underline flex items-center space-x-1 pl-1">
+                    <i class="fa-solid fa-rotate"></i>
+                    <span>ดึงข้อมูลล่าสุด</span>
+                </button>
+            </div>
         </div>
 
         <!-- Dashboard Stat Cards -->
@@ -457,7 +463,21 @@
                     <input type="url" id="sheetUrlInput" placeholder="https://script.google.com/macros/s/AKfycb.../exec" class="flex-1 border border-slate-300 rounded-xl p-2.5 text-xs font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     <button onclick="saveSheetUrl()" class="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-xl text-xs font-semibold transition">บันทึก URL</button>
                 </div>
-                <p class="text-[11px] text-slate-500">เมื่อระบุ URL ระบบจะดึงข้อมูลและบันทึกข้อมูลไปยัง Google Sheet โดยอัตโนมัติ (หากไม่ระบุจะบันทึกในเครื่องเฉพาะเครื่องนี้)</p>
+                <p class="text-[11px] text-slate-500">เมื่อระบุ URL ระบบจะดึงข้อมูลและบันทึกข้อมูลไปยัง Google Sheet โดยอัตโนมัติ</p>
+
+                <div id="shareLinkContainer" class="hidden mt-3 pt-3 border-t border-slate-200 bg-indigo-50/70 p-3 rounded-xl border-indigo-100 space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-indigo-900 flex items-center space-x-1.5">
+                            <i class="fa-solid fa-link text-indigo-600"></i>
+                            <span>ลิงก์ใช้งานเชื่อมต่อออนไลน์ทุกอุปกรณ์</span>
+                        </span>
+                    </div>
+                    <p class="text-[11px] text-indigo-700">คัดลอกลิงก์นี้ไปเปิดในโทรศัพท์มือถือ หรือคอมพิวเตอร์เครื่องอื่น เพื่อเปิดใช้งานเชื่อมต่อ Google Sheet เดียวกันได้ทันที โดยไม่ต้องตั้งค่าใหม่</p>
+                    <button onclick="copyShareableLink()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-1.5 shadow-sm">
+                        <i class="fa-solid fa-copy"></i>
+                        <span id="copyShareBtnText">คัดลอกลิงก์เข้าใช้งานทุกเครื่อง</span>
+                    </button>
+                </div>
             </div>
 
             <!-- Setup Instructions -->
@@ -603,6 +623,7 @@ function formatDate(d) {
         // Initialize App on DOM Load
         window.onload = function() {
             loadSavedState();
+            checkUrlParameters();
             populateYearOptions();
             setupDefaultDates();
             renderApp();
@@ -612,6 +633,30 @@ function formatDate(d) {
                 fetchDataFromSheet();
             }
         };
+
+        // Check URL Query Parameters for Auto-connecting Sheet URL across devices
+        function checkUrlParameters() {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const paramSheetUrl = urlParams.get('sheetUrl') || urlParams.get('url');
+
+                if (paramSheetUrl) {
+                    const decodedUrl = decodeURIComponent(paramSheetUrl).trim();
+                    if (decodedUrl && decodedUrl.startsWith('http')) {
+                        state.googleSheetUrl = decodedUrl;
+                        saveStateToLocal();
+                        updateSheetStatusUI();
+                        showToast('เชื่อมต่อ Google Sheet จากลิงก์เรียบร้อยแล้ว!', 'success');
+
+                        // Clean up URL without reloading to keep address clean
+                        const cleanUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                        window.history.replaceState({ path: cleanUrl }, '', cleanUrl);
+                    }
+                }
+            } catch (err) {
+                console.error('Error parsing URL parameters:', err);
+            }
+        }
 
         // Local Storage Handlers
         function loadSavedState() {
@@ -629,6 +674,48 @@ function formatDate(d) {
             }
 
             updateSheetStatusUI();
+        }
+
+        function updateSheetStatusUI() {
+            const bar = document.getElementById('syncStatusBar');
+            const urlLabel = document.getElementById('connectedSheetUrl');
+            const shareContainer = document.getElementById('shareLinkContainer');
+
+            if (state.googleSheetUrl) {
+                bar.classList.remove('hidden');
+                if (shareContainer) shareContainer.classList.remove('hidden');
+                urlLabel.textContent = state.googleSheetUrl;
+            } else {
+                bar.classList.add('hidden');
+                if (shareContainer) shareContainer.classList.add('hidden');
+            }
+        }
+
+        // Copy Shareable Link embedded with Google Sheet URL for other devices
+        function copyShareableLink() {
+            if (!state.googleSheetUrl) {
+                showToast('กรุณาบันทึก Google Sheet Web App URL ก่อนสร้างลิงก์', 'error');
+                return;
+            }
+
+            const baseUrl = window.location.protocol + '//' + window.location.host + window.location.pathname;
+            const shareableUrl = `${baseUrl}?sheetUrl=${encodeURIComponent(state.googleSheetUrl)}`;
+
+            // Create temporary textarea for copying
+            const tempInput = document.createElement('textarea');
+            tempInput.value = shareableUrl;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+
+            const copyShareBtnText = document.getElementById('copyShareBtnText');
+            if (copyShareBtnText) {
+                copyShareBtnText.textContent = 'คัดลอกลิงก์เรียบร้อยแล้ว!';
+                setTimeout(() => { copyShareBtnText.textContent = 'คัดลอกลิงก์เข้าใช้งานทุกเครื่อง'; }, 2000);
+            }
+
+            showToast('คัดลอกลิงก์สำหรับเปิดบนอุปกรณ์อื่นเรียบร้อยแล้ว!', 'success');
         }
 
         function saveStateToLocal() {
